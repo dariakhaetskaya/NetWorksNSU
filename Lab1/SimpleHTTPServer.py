@@ -2,7 +2,6 @@ from socket import *
 from flask import Flask, request
 import http.client
 import email
-import pprint
 from io import StringIO
 import mimetypes
 from datetime import datetime 
@@ -37,23 +36,19 @@ def createServer():
 
 			# if we're connected
 			requestText = clientSocket.recv(1024).decode()
-			print(requestText)
 			requestCopy = requestText
 
 			_, headers = requestText.split('\r\n', 1)
 			msg = email.message_from_file(StringIO(headers))
 			headers = dict(msg.items())
-			pprint.pprint(headers, width = 160)
 			if (contTypeAllowed(headers.get('Accept'))):
 				# Parse HTTP headers
-				headers1 = requestCopy.split('\n')
-				filename = headers1[0].split()[1]
+				headersArray = requestCopy.split('\n')
+				filename = headersArray[0].split()[1]
 
 				# main page
 				if filename == '/':
 					filename = 'index.html'
-
-					print(filename)
 
 				# try to open requested file
 				try:
@@ -61,7 +56,6 @@ def createServer():
 					content = fin.read()
 					fin.close() 
 					responseHeaders = getResponseHeader(filename, len(content))
-					print(responseHeaders)
 
 					# if successful, return the page
 					response = 'HTTP/1.1 200 OK\r\n' + responseHeaders + content
@@ -72,7 +66,6 @@ def createServer():
 			else:
 				response = 'HTTP/1.1 405 METHOD NOT ALLOWED\r\n Method Not Allowed'
 
-			print(response)
 			clientSocket.sendall(response.encode())
 			clientSocket.close()
 
