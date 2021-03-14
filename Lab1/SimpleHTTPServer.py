@@ -45,6 +45,14 @@ def createServer():
 
 			# if we're connected
 			requestText = clientSocket.recv(1024).decode()
+			print('recived:')
+			print(requestText)
+			if (len(requestText) == 0):
+				CONNECTION_ALIVE = False
+				clientSocket.shutdown(SHUT_WR)
+				clientSocket.close()
+				continue
+
 			requestCopy = requestText
 			print(requestText)
 
@@ -90,14 +98,16 @@ def createServer():
 						clientSocket.sendall(response.encode(encoding="utf-8"))
 
 
-					# return 404 if failed to find a file
+				# return 404 if failed to find a file
 				except FileNotFoundError:
 					clientSocket.sendall(NOT_FOUND.encode(encoding="utf-8"))
 			else:
 				clientSocket.sendall(NOT_ALLOWED.encode(encoding="utf-8"))
 
 			if(connection == 'close'):
+				clientSocket.shutdown(SHUT_WR)
 				clientSocket.close()
+				CONNECTION_ALIVE = False
 			else:
 				CONNECTION_ALIVE = True
 
