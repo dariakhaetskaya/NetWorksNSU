@@ -7,7 +7,7 @@ from datetime import datetime
 import pytz
 import os, time
 
-DEFAULT_CONNECTION_TYPE = 'keep-alive'
+DEFAULT_CONNECTION_TYPE = 'close'
 BYTE_SIZE = 8
 OK = 'HTTP/1.1 200 OK\r\n'
 NOT_FOUND = 'HTTP/1.1 404 NOT FOUND\r\n\r\nFile Not Found:('
@@ -23,7 +23,7 @@ def getResponseHeader(filename, connection, length):
 	(mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(filename)
 	header += 'Last-Modified: ' + time.ctime(mtime) + '\r\n'
 	header += 'Connection: ' + connection + '\r\n'
-	# header += 'Content-Length: ' + str(length) + '\r\n'
+	header += 'Content-Length: ' + str(length) + '\r\n'
 	return header
 
 def contTypeAllowed(AcceptStr):
@@ -31,15 +31,17 @@ def contTypeAllowed(AcceptStr):
 	 	or '*/*' in AcceptStr)
 
 def createServer():
+	CONNECTION_ALIVE = False
 	serverSocket = socket(AF_INET, SOCK_STREAM)
 	serverSocket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 	try :
 		serverSocket.bind(('localhost', 8888))
-		serverSocket.listen(1)
+		serverSocket.listen(5)
 
 		while(True):
-			# Wait for client connections
-			(clientSocket, address) = serverSocket.accept()
+			if (not CONNECTION_ALIVE):
+				# Wait for client connections
+				(clientSocket, address) = serverSocket.accept()
 
 			# if we're connected
 			requestText = clientSocket.recv(1024).decode()
@@ -71,7 +73,7 @@ def createServer():
 						finImg = open(filename, 'rb')
 						img = finImg.read()
 						finImg.close()
-						responseHeaders = getResponseHeader(filename, connection, len(img) / BYTE_SIZE)
+						responseHeaders = getResponseHeader(filename, connection, len(img))
 						response = OK + responseHeaders + '\r\n'
 						clientSocket.send(response.encode(encoding="utf-8"))
 						clientSocket.send(img)
@@ -94,8 +96,10 @@ def createServer():
 			else:
 				clientSocket.sendall(NOT_ALLOWED.encode(encoding="utf-8"))
 
-			# if(connection == 'close'):
-			clientSocket.close()
+			if(connection == 'close'):
+				clientSocket.close()
+			else:
+				CONNECTION_ALIVE = True
 
 	except KeyboardInterrupt:
 		print("\nShutting down...\n")
