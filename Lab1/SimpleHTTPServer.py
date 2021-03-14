@@ -45,8 +45,6 @@ def createServer():
 
 			# if we're connected
 			requestText = clientSocket.recv(1024).decode()
-			print('recived:')
-			print(requestText)
 			if (len(requestText) == 0):
 				CONNECTION_ALIVE = False
 				clientSocket.shutdown(SHUT_WR)
@@ -54,7 +52,6 @@ def createServer():
 				continue
 
 			requestCopy = requestText
-			print(requestText)
 
 			_, headers = requestText.split('\r\n', 1)
 			msg = email.message_from_file(StringIO(headers))
