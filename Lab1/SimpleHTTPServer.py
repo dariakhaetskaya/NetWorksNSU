@@ -8,6 +8,10 @@ import pytz
 import os, time
 
 DEFAULT_CONNECTION_TYPE = 'keep-alive'
+BYTE_SIZE = 8
+OK = 'HTTP/1.1 200 OK\r\n'
+NOT_FOUND = 'HTTP/1.1 404 NOT FOUND\r\n\r\nFile Not Found:('
+NOT_ALLOWED = 'HTTP/1.1 405 METHOD NOT ALLOWED\r\n\r\n Method Not Allowed'
 
 def getResponseHeader(filename, connection, length):
 	filetype = mimetypes.guess_type(filename)[0]
@@ -19,7 +23,7 @@ def getResponseHeader(filename, connection, length):
 	(mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(filename)
 	header += 'Last-Modified: ' + time.ctime(mtime) + '\r\n'
 	header += 'Connection: ' + connection + '\r\n'
-	header += 'Content-Length: ' + str(length) + '\r\n'
+	# header += 'Content-Length: ' + str(length) + '\r\n'
 	return header
 
 def contTypeAllowed(AcceptStr):
@@ -31,7 +35,7 @@ def createServer():
 	serverSocket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 	try :
 		serverSocket.bind(('localhost', 8888))
-		serverSocket.listen(5)
+		serverSocket.listen(1)
 
 		while(True):
 			# Wait for client connections
@@ -40,6 +44,7 @@ def createServer():
 			# if we're connected
 			requestText = clientSocket.recv(1024).decode()
 			requestCopy = requestText
+			print(requestText)
 
 			_, headers = requestText.split('\r\n', 1)
 			msg = email.message_from_file(StringIO(headers))
@@ -56,25 +61,40 @@ def createServer():
 
 				# main page
 				if filename == '/':
-					filename = 'index.html'
+					filename = 'index1.html'
+				else:
+					filename = os.getcwd() + filename
 
 				# try to open requested file
 				try:
-					fin = open(filename)
-					content = fin.read()
-					responseHeaders = getResponseHeader(filename, connection, len(content.encode(encoding="utf-8")))
-					fin.close() 
+					if (filename.endswith(".jpg")):
+						finImg = open(filename, 'rb')
+						img = finImg.read()
+						finImg.close()
+						responseHeaders = getResponseHeader(filename, connection, len(img) / BYTE_SIZE)
+						response = OK + responseHeaders + '\r\n'
+						clientSocket.send(response.encode(encoding="utf-8"))
+						clientSocket.send(img)
+						continue;
 
-					# if successful, return the page
-					response = 'HTTP/1.1 200 OK\r\n' + responseHeaders + '\r\n' + content
+					else:
+						fin = open(filename, encoding="utf-8")
+						content = fin.read()
+						fin.close() 
+						responseHeaders = getResponseHeader(filename, connection, len(content))
+
+						# if successful, return the page
+						response = OK + responseHeaders + '\r\n' + content
+						clientSocket.sendall(response.encode(encoding="utf-8"))
+
 
 					# return 404 if failed to find a file
 				except FileNotFoundError:
-					response = 'HTTP/1.1 404 NOT FOUND\r\n\r\nFile Not Found:('
+					clientSocket.sendall(NOT_FOUND.encode(encoding="utf-8"))
 			else:
-				response = 'HTTP/1.1 405 METHOD NOT ALLOWED\r\n\r\n Method Not Allowed'
+				clientSocket.sendall(NOT_ALLOWED.encode(encoding="utf-8"))
 
-			clientSocket.send(response.encode(encoding="utf-8"))
+			# if(connection == 'close'):
 			clientSocket.close()
 
 	except KeyboardInterrupt:
